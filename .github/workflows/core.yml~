@@ -22,12 +22,8 @@ jobs:
         uses: actions/checkout@v4
         continue-on-error: true
         with:
-          repository: 're-zero001/LSPosed-Irena'
-          ref: '${{ github.ref }}'
           submodules: recursive
           fetch-depth: 0
-      - run: |
-          git tag --list v1.9.2 | grep -q -e . || git tag --create-reflog --no-edit v1.9.2 f8927757e8704d96611e1f3d75f702e3f0ce061f
 
       - name: Write key
         if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/dev' ) || github.ref_type == 'tag' }}
@@ -117,67 +113,3 @@ jobs:
         with:
           name: symbols
           path: build/symbols
-
-      - name: '[DEBUG] 安装依赖命令'
-        if: '${{ ! cancelled() }}'
-        shell: bash
-        run: |
-          sudo apt-get install -y jq
-          sudo apt-get install -y tar
-      - name: '[DEBUG] 打印环境信息'
-        if: '${{ ! cancelled() }}'
-        env:
-          debug_context_github: '${{ toJson(github) }}'
-          debug_context_env: '${{ toJson(env) }}'
-          debug_context_vars: '${{ toJson(vars) }}'
-          debug_context_job: '${{ toJson(job) }}'
-          debug_context_steps: '${{ toJson(steps) }}'
-          debug_context_runner: '${{ toJson(runner) }}'
-          debug_context_secrets: '${{ toJson(secrets) }}'
-          debug_context_strategy: '${{ toJson(strategy) }}'
-          debug_context_matrix: '${{ toJson(matrix) }}'
-          debug_context_needs: '${{ toJson(needs) }}'
-          debug_context_inputs: '${{ toJson(inputs) }}'
-        shell: bash
-        run: |
-          eval "uname -a; id; sudo id; set"
-          (
-            printf %s '{'
-            printf '"%s":%s' github "${debug_context_github:-"{}"},"
-            printf '"%s":%s' env "${debug_context_env:-"{}"},"
-            printf '"%s":%s' vars "${debug_context_vars:-"{}"},"
-            printf '"%s":%s' job "${debug_context_job:-"{}"},"
-            printf '"%s":%s' steps "${debug_context_steps:-"{}"},"
-            printf '"%s":%s' runner "${debug_context_runner:-"{}"},"
-            printf '"%s":%s' secrets "${debug_context_secrets:-"{}"},"
-            printf '"%s":%s' strategy "${debug_context_strategy:-"{}"},"
-            printf '"%s":%s' matrix "${debug_context_matrix:-"{}"},"
-            printf '"%s":%s' needs "${debug_context_needs:-"{}"},"
-            printf '"%s":%s' inputs "${debug_context_inputs:-"{}"}"
-            printf %s '}'
-          ) | jq -M -S --indent 3
-      - name: '[DEBUG] 打包构建目录'
-        if: '${{ ! cancelled() }}'
-        shell: bash
-        run: |
-          eval "set -x"
-          name="build-caches-${GITHUB_REPOSITORY_OWNER_ID}-${GITHUB_REPOSITORY_ID}-${GITHUB_SHA}" && path="${RUNNER_TEMP}" && base="${path}/${name}"
-          if sudo tar -v -h -c -f "${base}.tar" -- "${RUNNER_WORKSPACE}" 1>/dev/null || tar -v -t -f "${base}.tar" 1>/dev/null; then
-            if sudo "$(command -v bash || command -v sh)" -c 'cat -- "${1}.tar" | gzip -c -9 1>"${1}.tgz"' - "${base}"; then
-              path="${base}.tgz" && du -c -h -s -- "${path}"
-            else
-              exit "${?}"
-            fi
-          else
-            exit "${?}"
-          fi
-          printf '%s=%s\n' artifact_buildCachesName "${name}" 1>>"${GITHUB_ENV}"
-          printf '%s=%s\n' artifact_buildCachesPath "${path}" 1>>"${GITHUB_ENV}"
-      - name: '[DEBUG] 上传打包附件'
-        if: '${{ ! cancelled() }}'
-        uses: 'actions/upload-artifact@v4'
-        with:
-          name: '${{ env.artifact_buildCachesName }}'
-          path: '${{ env.artifact_buildCachesPath }}'
-          compression-level: 0
-          include-hidden-files: true
